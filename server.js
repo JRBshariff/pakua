@@ -16,19 +16,13 @@ const execFileAsync = promisify(execFile);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const BASE_PATH = '/pakuwavideo';
+const BASE_PATH = process.env.BASE_PATH || '/pakuwavideo';
 
-// yt-dlp standalone binary
-const YTDLP_BIN = process.env.YTDLP_BIN || '/opt/render/project/src/bin/yt-dlp';
-
-// weka cookies file path hapa au kupitia env var kwenye Render
+const YTDLP_BIN = process.env.YTDLP_BIN || path.join(__dirname, 'bin', 'yt-dlp');
 const YOUTUBE_COOKIES_FILE =
   process.env.YOUTUBE_COOKIES_FILE || '/etc/secrets/youtube-cookies.txt';
 
 const youtubedl = createYoutubeDl(YTDLP_BIN);
-
-app.use(cors());
-app.use(express.json());
 
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const DOWNLOAD_DIR = path.join(__dirname, 'downloads');
@@ -37,6 +31,8 @@ if (!fs.existsSync(DOWNLOAD_DIR)) {
   fs.mkdirSync(DOWNLOAD_DIR, { recursive: true });
 }
 
+app.use(cors());
+app.use(express.json({ limit: '2mb' }));
 app.use(express.static(PUBLIC_DIR));
 app.use(BASE_PATH, express.static(PUBLIC_DIR));
 app.use('/downloads', express.static(DOWNLOAD_DIR));
@@ -49,8 +45,12 @@ function buildAppUrl(relativePath = '') {
 
 function detectPlatform(url = '') {
   const u = url.toLowerCase();
+
   if (u.includes('tiktok.com')) return 'tiktok';
   if (u.includes('youtube.com') || u.includes('youtu.be')) return 'youtube';
+  if (u.includes('instagram.com')) return 'instagram';
+  if (u.includes('facebook.com') || u.includes('fb.watch')) return 'facebook';
+
   return 'unknown';
 }
 
@@ -61,28 +61,9 @@ function isTikTokDirectCdnUrl(url = '') {
 function getReferer(platform, originalUrl) {
   if (platform === 'youtube') return 'https://www.youtube.com/';
   if (platform === 'tiktok') return 'https://www.tiktok.com/';
+  if (platform === 'instagram') return 'https://www.instagram.com/';
+  if (platform === 'facebook') return 'https://www.facebook.com/';
   return originalUrl;
-}
-
-function chooseBestFormat(info) {
-  if (!info || !Array.isArray(info.formats)) return null;
-
-  const withUrl = info.formats.filter(f => f && f.url);
-  if (!withUrl.length) return null;
-
-  const muxed = withUrl
-    .filter(f => f.vcodec && f.vcodec !== 'none' && f.acodec && f.acodec !== 'none')
-    .sort((a, b) => {
-      const heightDiff = (b.height || 0) - (a.height || 0);
-      if (heightDiff !== 0) return heightDiff;
-      return (b.tbr || 0) - (a.tbr || 0);
-    })[0];
-
-  return muxed || withUrl.sort((a, b) => {
-    const heightDiff = (b.height || 0) - (a.height || 0);
-    if (heightDiff !== 0) return heightDiff;
-    return (b.tbr || 0) - (a.tbr || 0);
-  })[0];
 }
 
 function buildYtdlpOptions(url, platform) {
@@ -109,6 +90,91 @@ function makeInfoOptions(url, platform) {
     dumpSingleJson: true,
     skipDownload: true
   };
+}
+
+function chooseBestFormat(info) {
+  if (!info || !Array.isArray(info.formats)) return null;
+
+  const formats = info.formats.filter(f => f && f.url);
+  if (!formats.length) return null;
+
+  const muxed = formats
+    .filter(
+      f =>
+        f.vcodec &&
+        f.vcodec !== 'none' &&
+        f.acodec &&
+        f.acodec !== 'none'
+    )
+    .sort((a, b) => {
+      const heightDiff = (b.height || 0) - (a.height || 0);
+      if (heightDiff !== 0) return heightDiff;
+      return (b.tbr || 0) - (a.tbr || 0);
+    });
+
+  if (muxed.length > 0) {
+    return muxed[0];
+  }
+
+  const audioOnly = formats
+    .filter(
+      f =>
+        (!f.vcodec || f.vcodec === 'none') &&
+        f.acodec &&
+        f.acodec !== 'none'
+    )
+    .sort((a, b) => (b.abr || b.tbr || 0) - (a.abr || a.tbr || 0));
+
+  const videoOnly = formats
+    .filter(
+      f =>
+        f.vcodec &&
+        f.vcodec !== 'none' &&
+        (!f.acodec || f.acodec === 'none')
+    )
+    .sort((a, b) => {
+      const heightDiff = (b.height || 0) - (a.height || 0);
+      if (heightDiff !== 0) return heightDiff;
+      return (b.tbr || 0) - (a.tbr || 0);
+    });
+
+  if (videoOnly.length > 0) {
+    return videoOnly[0];
+  }
+
+  if (audioOnly.length > 0) {
+    return audioOnly[0];
+  }
+
+  return formats.sort((a, b) => {
+    const heightDiff = (b.height || 0) - (a.height || 0);
+    if (heightDiff !== 0) return heightDiff;
+    return (b.tbr || 0) - (a.tbr || 0);
+  })[0];
+}
+
+function sanitizeFormats(info) {
+  if (!info || !Array.isArray(info.formats)) return [];
+
+  return info.formats
+    .filter(f => f && f.url)
+    .map(f => ({
+      format_id: f.format_id || null,
+      ext: f.ext || null,
+      width: f.width || null,
+      height: f.height || null,
+      vcodec: f.vcodec || null,
+      acodec: f.acodec || null,
+      format_note: f.format_note || null,
+      protocol: f.protocol || null,
+      tbr: f.tbr || null,
+      abr: f.abr || null
+    }))
+    .sort((a, b) => {
+      const heightDiff = (b.height || 0) - (a.height || 0);
+      if (heightDiff !== 0) return heightDiff;
+      return (b.tbr || 0) - (a.tbr || 0);
+    });
 }
 
 async function checkBinary() {
@@ -152,6 +218,7 @@ async function downloadTikTokToFile(pageUrl) {
   });
 
   const files = fs.readdirSync(DOWNLOAD_DIR).filter(name => name.startsWith(`${fileId}.`));
+
   if (!files.length) {
     throw new Error('Imeshindikana kuhifadhi video ya TikTok kwenye server');
   }
@@ -171,10 +238,10 @@ app.get(`${BASE_PATH}/`, (req, res) => {
   res.sendFile(path.join(PUBLIC_DIR, 'index.html'));
 });
 
-app.get('/api/health', async (req, res) => {
+async function healthHandler(req, res) {
   try {
     const bin = await checkBinary();
-    res.json({
+    return res.json({
       status: 'ok',
       base_path: BASE_PATH,
       yt_dlp_bin: YTDLP_BIN,
@@ -182,30 +249,16 @@ app.get('/api/health', async (req, res) => {
       youtube_cookies_exists: fs.existsSync(YOUTUBE_COOKIES_FILE)
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       status: 'error',
-      message: error.message
+      message: error.message,
+      yt_dlp_bin: YTDLP_BIN
     });
   }
-});
+}
 
-app.get(`${BASE_PATH}/api/health`, async (req, res) => {
-  try {
-    const bin = await checkBinary();
-    res.json({
-      status: 'ok',
-      base_path: BASE_PATH,
-      yt_dlp_bin: YTDLP_BIN,
-      binary: bin,
-      youtube_cookies_exists: fs.existsSync(YOUTUBE_COOKIES_FILE)
-    });
-  } catch (error) {
-    res.status(500).json({
-      status: 'error',
-      message: error.message
-    });
-  }
-});
+app.get('/api/health', healthHandler);
+app.get(`${BASE_PATH}/api/health`, healthHandler);
 
 async function handleDownloadRequest(req, res) {
   const { url } = req.body;
@@ -223,7 +276,7 @@ async function handleDownloadRequest(req, res) {
   if (platform === 'unknown') {
     return res.status(400).json({
       status: 'error',
-      message: 'Platform haijatambulika. Tumia YouTube au TikTok link sahihi.'
+      message: 'Platform haijatambulika. Tumia YouTube, TikTok, Instagram, au Facebook link sahihi.'
     });
   }
 
@@ -243,6 +296,7 @@ async function handleDownloadRequest(req, res) {
 
   try {
     await checkBinary();
+
     const info = await getVideoInfo(url, platform);
 
     if (platform === 'tiktok') {
@@ -258,18 +312,17 @@ async function handleDownloadRequest(req, res) {
       });
     }
 
-    let best = null;
-    let downloadUrl = info.url;
-
-    if (!downloadUrl) {
-      best = chooseBestFormat(info);
-      if (best?.url) downloadUrl = best.url;
-    }
+    const best = chooseBestFormat(info);
+    const downloadUrl = best?.url || info.url || null;
 
     if (!downloadUrl) {
       return res.status(422).json({
         status: 'error',
-        message: 'Hakuna media URL iliyopatikana kwa video hii'
+        message: 'Hakuna media URL iliyopatikana kwa video hii',
+        debug: {
+          title: info.title || null,
+          formats_count: Array.isArray(info.formats) ? info.formats.length : 0
+        }
       });
     }
 
@@ -285,6 +338,7 @@ async function handleDownloadRequest(req, res) {
       platform,
       stream_url: streamUrl,
       direct_url: downloadUrl,
+      file_url: platform === 'instagram' || platform === 'facebook' ? streamUrl : undefined,
       selected_format: best
         ? {
             format_id: best.format_id || null,
@@ -296,10 +350,15 @@ async function handleDownloadRequest(req, res) {
             format_note: best.format_note || null
           }
         : null,
-      note: 'Tumia stream_url kwa YouTube.'
+      formats: sanitizeFormats(info),
+      note:
+        platform === 'youtube'
+          ? 'Tumia stream_url kwa YouTube.'
+          : 'Format bora iliyopatikana imechaguliwa.'
     });
   } catch (error) {
     console.error(`${platform} Error:`, error);
+
     return res.status(500).json({
       status: 'error',
       message: error.stderr || error.message || 'Imeshindikana kuchakata video'
@@ -330,6 +389,13 @@ async function handleStreamRequest(req, res) {
     });
   }
 
+  if (!/^https?:\/\//i.test(mediaUrl)) {
+    return res.status(400).json({
+      status: 'error',
+      message: 'Media URL si sahihi'
+    });
+  }
+
   try {
     const parsed = new URL(mediaUrl);
     const client = parsed.protocol === 'https:' ? https : http;
@@ -346,7 +412,9 @@ async function handleStreamRequest(req, res) {
       if (statusCode >= 300 && statusCode < 400 && upstream.headers.location) {
         const redirectEncoded = Buffer.from(upstream.headers.location, 'utf8').toString('base64');
         return res.redirect(
-          buildAppUrl(`/api/stream?u=${encodeURIComponent(redirectEncoded)}&platform=${encodeURIComponent(String(platform))}`)
+          buildAppUrl(
+            `/api/stream?u=${encodeURIComponent(redirectEncoded)}&platform=${encodeURIComponent(String(platform))}`
+          )
         );
       }
 
@@ -367,9 +435,18 @@ async function handleStreamRequest(req, res) {
 
       res.status(statusCode);
       res.setHeader('Content-Type', upstream.headers['content-type'] || 'application/octet-stream');
-      if (upstream.headers['content-length']) res.setHeader('Content-Length', upstream.headers['content-length']);
-      if (upstream.headers['accept-ranges']) res.setHeader('Accept-Ranges', upstream.headers['accept-ranges']);
-      if (upstream.headers['content-range']) res.setHeader('Content-Range', upstream.headers['content-range']);
+
+      if (upstream.headers['content-length']) {
+        res.setHeader('Content-Length', upstream.headers['content-length']);
+      }
+
+      if (upstream.headers['accept-ranges']) {
+        res.setHeader('Accept-Ranges', upstream.headers['accept-ranges']);
+      }
+
+      if (upstream.headers['content-range']) {
+        res.setHeader('Content-Range', upstream.headers['content-range']);
+      }
 
       upstream.pipe(res);
     });
@@ -396,6 +473,20 @@ async function handleStreamRequest(req, res) {
 
 app.get('/api/stream', handleStreamRequest);
 app.get(`${BASE_PATH}/api/stream`, handleStreamRequest);
+
+app.use((req, res, next) => {
+  if (req.method !== 'GET') return next();
+
+  const wantsHtml = (req.headers.accept || '').includes('text/html');
+  const isApi = req.path.startsWith('/api/') || req.path.startsWith(`${BASE_PATH}/api/`);
+  const isDownload = req.path.startsWith('/downloads/') || req.path.startsWith(`${BASE_PATH}/downloads/`);
+
+  if (!isApi && !isDownload && wantsHtml) {
+    return res.sendFile(path.join(PUBLIC_DIR, 'index.html'));
+  }
+
+  next();
+});
 
 app.listen(PORT, () => {
   console.log(`🚀 Server inafanya kazi kwenye port ${PORT}`);
