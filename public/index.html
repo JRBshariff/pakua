@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pakua Video • Haraka & Rahisi</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0a0f1c 0%, #1a2338 100%);
+            color: #e0e7ff;
+            min-height: 100vh;
+        }
+
+        .hero {
+            background: linear-gradient(90deg, #00d4ff, #a855f7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .platform-card {
+            background: rgba(255,255,255,0.08);
+            border: 2px solid transparent;
+            border-radius: 20px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            height: 100%;
+        }
+
+        .platform-card:hover {
+            transform: translateY(-6px);
+            border-color: #00d4ff;
+        }
+
+        .platform-card.active {
+            border-color: #00d4ff;
+            background: rgba(0, 212, 255, 0.18);
+            box-shadow: 0 10px 30px rgba(0, 212, 255, 0.15);
+        }
+
+        .main-card {
+            background: rgba(255,255,255,0.96);
+            color: #0f172a;
+            border-radius: 28px;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.4);
+        }
+
+        .btn-download {
+            background: linear-gradient(90deg, #00d4ff, #a855f7);
+            border: none;
+            border-radius: 50px;
+            padding: 16px 40px;
+            font-weight: 700;
+        }
+
+        .btn-download:hover {
+            opacity: 0.95;
+        }
+
+        .btn-download:disabled {
+            opacity: 0.65;
+            cursor: not-allowed;
+        }
+
+        .input-group-text {
+            border-radius: 16px 0 0 16px !important;
+        }
+
+        .form-control {
+            border-radius: 0 16px 16px 0 !important;
+        }
+
+        #successResult {
+            border-radius: 24px;
+            overflow: hidden;
+        }
+
+        #thumbnail {
+            width: 100%;
+            height: 100%;
+            max-height: 320px;
+            object-fit: cover;
+            background: #f1f5f9;
+            display: block;
+        }
+
+        .thumbnail-placeholder {
+            width: 100%;
+            min-height: 260px;
+            max-height: 320px;
+            border-radius: 1rem;
+            background: linear-gradient(135deg, #e2e8f0, #cbd5e1);
+            color: #475569;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 24px;
+            font-weight: 600;
+        }
+
+        .small-note {
+            font-size: 0.92rem;
+        }
+
+        .badge-soft {
+            background: rgba(13, 110, 253, 0.1);
+            color: #0d6efd;
+            border: 1px solid rgba(13, 110, 253, 0.2);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg sticky-top bg-dark">
+        <div class="container">
+            <a class="navbar-brand fw-bold fs-3 text-white" href="#">
+                <i class="bi bi-cloud-download-fill me-2"></i>Pakua Video
+            </a>
+        </div>
+    </nav>
+
+    <div class="container py-5">
+        <div class="text-center mb-5">
+            <h1 class="display-4 hero">Pakua Video Kutoka Mitandao Yote</h1>
+            <p class="lead text-white-50 mb-2">Instagram • Facebook • TikTok • YouTube</p>
+            <p class="text-white-50 small mb-0">Bandika link ya post/video, kisha pakua kwa urahisi</p>
+        </div>
+
+        <div class="main-card p-4 p-md-5 mx-auto" style="max-width: 900px;">
+            <div class="mb-5">
+                <h5 class="fw-semibold mb-4">1. Chagua Mtandao</h5>
+                <div class="row g-4" id="platforms"></div>
+            </div>
+
+            <div class="mb-4">
+                <h5 class="fw-semibold mb-4">2. Bandika Link ya Video</h5>
+                <div class="input-group input-group-lg">
+                    <span class="input-group-text">
+                        <i class="bi bi-link-45deg"></i>
+                    </span>
+                    <input
+                        type="url"
+                        id="videoUrl"
+                        class="form-control"
+                        placeholder="Weka link hapa..."
+                        autocomplete="off"
+                    >
+                </div>
+                <div class="form-text mt-2">
+                    Tumia link ya kawaida ya post/video. Kwa TikTok, usiweke direct CDN link ya <code>v19-webapp-prime...</code>
+                </div>
+            </div>
+
+            <div id="messageArea" class="mb-4 hidden"></div>
+
+            <div class="text-center">
+                <button id="downloadBtn" onclick="handleDownload()" class="btn btn-download text-white w-100">
+                    <i class="bi bi-cloud-arrow-down me-2"></i>
+                    <span id="downloadBtnText">Anza Kuchakata & Pakua</span>
+                </button>
+            </div>
+
+            <div id="resultArea" class="mt-5 hidden">
+                <div id="loadingState" class="text-center py-5 hidden">
+                    <div class="spinner-border text-primary mb-4" style="width:4rem;height:4rem"></div>
+                    <h5>Inachakata video...</h5>
+                    <p class="text-muted mb-0">Subiri kidogo</p>
+                </div>
+
+                <div id="successResult" class="card border-0 shadow d-none">
+                    <div class="card-body p-4">
+                        <div class="row g-4 align-items-center">
+                            <div class="col-md-5">
+                                <img id="thumbnail" src="" class="img-fluid rounded-4 shadow-sm" alt="Thumbnail">
+                                <div id="thumbnailFallback" class="thumbnail-placeholder shadow-sm">
+                                    Hakuna thumbnail iliyopatikana
+                                </div>
+                            </div>
+
+                            <div class="col-md-7">
+                                <div class="d-flex flex-wrap gap-2 mb-3">
+                                    <span class="badge rounded-pill badge-soft" id="platformBadge">Platform</span>
+                                    <span class="badge rounded-pill text-bg-light" id="qualityBadge">Best quality</span>
+                                </div>
+
+                                <h4 class="fw-bold mb-3" id="videoTitle">Jina la video</h4>
+
+                                <p class="text-muted mb-2" id="platformName"></p>
+                                <p class="text-muted small-note mb-4" id="resultNote"></p>
+
+                                <div class="d-grid gap-3">
+                                    <button onclick="downloadNow()" class="btn btn-success btn-lg rounded-pill">
+                                        <i class="bi bi-download me-2"></i>Pakua Video
+                                    </button>
+
+                                    <button onclick="copyDownloadLink()" class="btn btn-outline-secondary rounded-pill">
+                                        <i class="bi bi-clipboard me-2"></i>Nakili Link ya Kupakua
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="errorResult" class="alert alert-danger d-none mt-3 mb-0"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let selectedPlatform = null;
+        let currentDownloadUrl = '';
+        let currentDirectUrl = '';
+        let currentTitle = '';
+
+        const platforms = [
+            { id: "instagram", name: "Instagram", icon: "bi-instagram", color: "#E4405F" },
+            { id: "facebook",  name: "Facebook",  icon: "bi-facebook", color: "#1877F2" },
+            { id: "tiktok",    name: "TikTok",    icon: "bi-music-note-list", color: "#EE1D52" },
+            { id: "youtube",   name: "YouTube",   icon: "bi-youtube", color: "#FF0000" }
+        ];
+
+        function renderPlatforms() {
+            document.getElementById('platforms').innerHTML = platforms.map(p => `
+                <div class="col-6 col-md-3">
+                    <div class="platform-card text-center p-4" data-id="${p.id}" onclick="selectPlatform('${p.id}')">
+                        <i class="bi ${p.icon}" style="font-size: 2.8rem; color: ${p.color};"></i>
+                        <h6 class="fw-semibold mt-3 mb-0">${p.name}</h6>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function showMessage(type, text) {
+            const box = document.getElementById('messageArea');
+            box.className = `mb-4 alert alert-${type}`;
+            box.textContent = text;
+            box.classList.remove('hidden');
+        }
+
+        function hideMessage() {
+            const box = document.getElementById('messageArea');
+            box.className = 'mb-4 hidden';
+            box.textContent = '';
+        }
+
+        function resetResults() {
+            currentDownloadUrl = '';
+            currentDirectUrl = '';
+            currentTitle = '';
+
+            document.getElementById('resultArea').classList.add('hidden');
+            document.getElementById('loadingState').classList.add('hidden');
+            document.getElementById('successResult').classList.add('d-none');
+            document.getElementById('errorResult').classList.add('d-none');
+            document.getElementById('errorResult').textContent = '';
+
+            const thumbnail = document.getElementById('thumbnail');
+            const thumbnailFallback = document.getElementById('thumbnailFallback');
+
+            thumbnail.removeAttribute('src');
+            thumbnail.style.display = 'none';
+            thumbnailFallback.style.display = 'flex';
+
+            document.getElementById('videoTitle').textContent = '';
+            document.getElementById('platformName').textContent = '';
+            document.getElementById('platformBadge').textContent = 'Platform';
+            document.getElementById('qualityBadge').textContent = 'Best quality';
+            document.getElementById('resultNote').textContent = '';
+        }
+
+        function showLoading() {
+            document.getElementById('resultArea').classList.remove('hidden');
+            document.getElementById('loadingState').classList.remove('hidden');
+            document.getElementById('successResult').classList.add('d-none');
+            document.getElementById('errorResult').classList.add('d-none');
+
+            const btn = document.getElementById('downloadBtn');
+            const btnText = document.getElementById('downloadBtnText');
+            btn.disabled = true;
+            btnText.textContent = 'Inachakata...';
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingState').classList.add('hidden');
+
+            const btn = document.getElementById('downloadBtn');
+            const btnText = document.getElementById('downloadBtnText');
+            btn.disabled = false;
+            btnText.textContent = 'Anza Kuchakata & Pakua';
+        }
+
+        function showErrorResult(message) {
+            const errorBox = document.getElementById('errorResult');
+            errorBox.textContent = message || 'Kuna tatizo limetokea.';
+            errorBox.classList.remove('d-none');
+            document.getElementById('successResult').classList.add('d-none');
+            document.getElementById('resultArea').classList.remove('hidden');
+        }
+
+        function detectPlatformFromUrl(url) {
+            const value = url.toLowerCase();
+
+            if (value.includes('tiktok.com')) return 'tiktok';
+            if (value.includes('youtube.com') || value.includes('youtu.be')) return 'youtube';
+            if (value.includes('instagram.com')) return 'instagram';
+            if (value.includes('facebook.com') || value.includes('fb.watch')) return 'facebook';
+
+            return null;
+        }
+
+        function isTikTokDirectCdnUrl(url) {
+            return /https?:\/\/v\d+-webapp-prime\.tiktok\.com\/video\//i.test(url);
+        }
+
+        function capitalize(text) {
+            if (!text) return '';
+            return text.charAt(0).toUpperCase() + text.slice(1);
+        }
+
+        function getAbsoluteUrl(url) {
+            return new URL(url, window.location.origin).href;
+        }
+
+        function setThumbnail(src) {
+            const thumbnail = document.getElementById('thumbnail');
+            const thumbnailFallback = document.getElementById('thumbnailFallback');
+
+            if (src) {
+                thumbnail.src = src;
+                thumbnail.style.display = 'block';
+                thumbnailFallback.style.display = 'none';
+
+                thumbnail.onerror = function() {
+                    thumbnail.style.display = 'none';
+                    thumbnailFallback.style.display = 'flex';
+                };
+            } else {
+                thumbnail.removeAttribute('src');
+                thumbnail.style.display = 'none';
+                thumbnailFallback.style.display = 'flex';
+            }
+        }
+
+        window.selectPlatform = function(id) {
+            selectedPlatform = platforms.find(p => p.id === id) || null;
+            document.querySelectorAll('.platform-card').forEach(card => card.classList.remove('active'));
+
+            const selectedCard = document.querySelector(`[data-id="${id}"]`);
+            if (selectedCard) {
+                selectedCard.classList.add('active');
+            }
+
+            hideMessage();
+        };
+
+        window.handleDownload = async function() {
+            const urlInput = document.getElementById('videoUrl');
+            const url = urlInput.value.trim();
+
+            hideMessage();
+            resetResults();
+
+            if (!selectedPlatform) {
+                showMessage('warning', 'Chagua mtandao kwanza.');
+                return;
+            }
+
+            if (!url) {
+                showMessage('warning', 'Bandika link ya video kwanza.');
+                return;
+            }
+
+            if (selectedPlatform.id === 'tiktok' && isTikTokDirectCdnUrl(url)) {
+                showMessage('danger', 'Kwa TikTok, tumia page URL ya kawaida ya post/video, si direct CDN link ya v19-webapp-prime.');
+                return;
+            }
+
+            const detected = detectPlatformFromUrl(url);
+            if (detected && detected !== selectedPlatform.id) {
+                showMessage(
+                    'warning',
+                    `Link ulioweka unaonekana ni wa ${capitalize(detected)}, lakini umechagua ${selectedPlatform.name}. Badilisha platform au weka link sahihi.`
+                );
+                return;
+            }
+
+            showLoading();
+
+            try {
+                const res = await fetch('/api/download', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        url,
+                        platform: selectedPlatform.id
+                    })
+                });
+
+                const data = await res.json().catch(() => ({}));
+                hideLoading();
+
+                if (!res.ok || data.status !== 'success') {
+                    showErrorResult(data.message || 'Imeshindwa kuchakata link ya video.');
+                    return;
+                }
+
+                const finalUrl = data.file_url || data.stream_url || data.download_url || data.direct_url || '';
+
+                if (!finalUrl) {
+                    showErrorResult('Hakuna link ya kupakua iliyopatikana.');
+                    return;
+                }
+
+                currentDownloadUrl = getAbsoluteUrl(finalUrl);
+                currentDirectUrl = data.direct_url ? getAbsoluteUrl(data.direct_url) : '';
+                currentTitle = data.title || 'Video';
+
+                document.getElementById('videoTitle').textContent = currentTitle;
+                document.getElementById('platformName').innerHTML =
+                    `<i class="bi ${selectedPlatform.icon}" style="color:${selectedPlatform.color}"></i> ${capitalize(data.platform || selectedPlatform.id)}`;
+
+                document.getElementById('platformBadge').textContent = capitalize(data.platform || selectedPlatform.id);
+
+                const selectedFormat = data.selected_format || null;
+                const qualityText = selectedFormat && selectedFormat.height
+                    ? `${selectedFormat.height}p`
+                    : (selectedPlatform.id === 'tiktok' ? 'Ready file' : 'Best quality');
+
+                document.getElementById('qualityBadge').textContent = qualityText;
+
+                document.getElementById('resultNote').textContent =
+                    data.note || 'Video iko tayari kupakuliwa.';
+
+                setThumbnail(data.thumbnail || '');
+
+                document.getElementById('successResult').classList.remove('d-none');
+                document.getElementById('errorResult').classList.add('d-none');
+                document.getElementById('resultArea').classList.remove('hidden');
+
+            } catch (err) {
+                hideLoading();
+                showErrorResult('Tatizo la muunganisho na server.');
+            }
+        };
+
+        window.downloadNow = function() {
+            if (!currentDownloadUrl) {
+                showMessage('warning', 'Hakuna link ya kupakua. Jaribu tena.');
+                return;
+            }
+
+            window.open(currentDownloadUrl, '_blank', 'noopener,noreferrer');
+        };
+
+        window.copyDownloadLink = async function() {
+            if (!currentDownloadUrl) {
+                showMessage('warning', 'Hakuna link ya kunakili. Jaribu tena.');
+                return;
+            }
+
+            try {
+                await navigator.clipboard.writeText(currentDownloadUrl);
+                showMessage('success', 'Link ya kupakua imenakiliwa.');
+            } catch (err) {
+                showMessage('danger', 'Imeshindikana kunakili link.');
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            renderPlatforms();
+
+            document.getElementById('videoUrl').addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleDownload();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
