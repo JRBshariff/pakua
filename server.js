@@ -22,7 +22,7 @@ const YTDLP_PATH = '/usr/local/bin/yt-dlp';
 const YOUTUBE_COOKIES_FILE =
   process.env.YOUTUBE_COOKIES_FILE || '/etc/secrets/youtube-cookies.txt';
 
-const youtubedl = createYoutubeDl(YTDLP_BIN);
+const youtubedl = createYoutubeDl(YTDLP_PATH);
 
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const DOWNLOAD_DIR = path.join(__dirname, 'downloads');
