@@ -3,12 +3,15 @@
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
-    "postinstall": "mkdir -p bin && wget -O bin/yt-dlp https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux && chmod +x bin/yt-dlp && ls -lah bin",
-    "start": "node server.js"
+    "start": "node server.js",
+    "postinstall": "npm install -g yt-dlp && echo 'yt-dlp installed successfully'"
   },
   "dependencies": {
+    "express": "^4.19.2",
     "cors": "^2.8.5",
-    "express": "^4.21.2",
-    "youtube-dl-exec": "^3.0.24"
+    "youtube-dl-exec": "^2.5.0"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }
