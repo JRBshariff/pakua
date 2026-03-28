@@ -4,7 +4,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "postinstall": "npm install -g yt-dlp && echo 'yt-dlp installed successfully'"
+    "postinstall": "echo 'Skipping global yt-dlp install - using youtube-dl-exec instead'"
   },
   "dependencies": {
     "express": "^4.19.2",
