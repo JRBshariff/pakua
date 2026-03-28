@@ -18,7 +18,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const BASE_PATH = process.env.BASE_PATH || '/pakuwavideo';
 
-const YTDLP_BIN = process.env.YTDLP_BIN || path.join(__dirname, 'bin', 'yt-dlp');
+const YTDLP_PATH = '/usr/local/bin/yt-dlp';
 const YOUTUBE_COOKIES_FILE =
   process.env.YOUTUBE_COOKIES_FILE || '/etc/secrets/youtube-cookies.txt';
 
